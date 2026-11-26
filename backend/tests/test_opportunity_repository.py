@@ -3,6 +3,7 @@ import pytest
 from app.models.country import Country
 from app.models.businessmodel import BusinessModel
 from app.models.opportunity import Opportunity
+from app.models.category import Category
 from app.repositories.opportunity import (get_by_slug, 
                                           get_by_id, 
                                           get_all, search_opportunities)
@@ -293,11 +294,188 @@ async def test_search_opportunities_by_summary(db_session):
     
     result = await search_opportunities(
         db_session,
-        search="solar energy"
+        search="solar energy", 
+        country_id=opportunity2.country_id
+    )
+
+    result2 = await search_opportunities(
+        db_session,
+        country_id=opportunity2.country_id
     )
 
     assert len(result) == 1
     assert result[0].id == opportunity2.id
+    assert len(result2) == 1
+    assert result2[0].country_id == country2.id
+
+@pytest.mark.asyncio
+async def test_search_opportunities_by_business_model(db_session):
+
+    business_model2 = BusinessModel(
+        name="Pay-as-you-go Solar Energy",
+        slug="pay-as-you-go-solar-energy",
+        summary="Providing affordable solar energy through flexible payments.",
+        description="A business model that allows households and businesses to access solar energy systems through instalment-based payments."
+    )
+
+    country2 = Country(
+        name="Kenya",
+        iso_code="KE"
+    )
+
+    db_session.add_all([country2, business_model2])
+    await db_session.flush()
+
+    opportunity2 = Opportunity(
+        title="Affordable Solar Energy for Rural Households",
+        slug="affordable-solar-energy-rural-households",
+        summary="Making solar electricity accessible to rural households.",
+        problem="Many rural households lack reliable access to electricity.",
+        proposed_solution="Provide solar home systems through a pay-as-you-go payment model.",
+        country_id=country2.id,
+        business_model_id=business_model2.id
+    )
+
+    db_session.add(opportunity2)
+    await db_session.flush()
+
+    # Search using business model
+    result = await search_opportunities(
+        db_session,
+        business_model_id=business_model2.id
+    )
+
+    # Search using business model and text
+    result2 = await search_opportunities(
+        db_session,
+        search="solar energy",
+        business_model_id=business_model2.id
+    )
+
+    assert len(result) == 1
+    assert result[0].id == opportunity2.id
+
+    assert len(result2) == 1
+    assert result2[0].id == opportunity2.id
+
+
+@pytest.mark.asyncio
+async def test_search_opportunities_by_category(db_session):
+
+    # Arrange
+    category = Category(
+        name="Renewable Energy",
+        slug="renewable-energy",
+        description="Businesses and solutions focused on renewable energy."
+    )
+
+    db_session.add(category)
+    await db_session.flush()
+
+    country2 = Country(
+        name="Kenya",
+        iso_code="KE"
+    )
+
+    business_model2 = BusinessModel(
+        name="Pay-as-you-go Solar Energy",
+        slug="pay-as-you-go-solar-energy",
+        summary="Providing affordable solar energy through flexible payments.",
+        description="A business model that allows households and businesses to access solar energy systems through instalment-based payments."
+    )
+
+    db_session.add_all([country2, business_model2])
+    await db_session.flush()
+
+    opportunity2 = Opportunity(
+        title="Affordable Solar Energy for Rural Households",
+        slug="affordable-solar-energy-rural-households",
+        summary="Making solar electricity accessible to rural households.",
+        problem="Many rural households lack reliable access to electricity.",
+        proposed_solution="Provide solar home systems through a pay-as-you-go payment model.",
+        country_id=country2.id,
+        business_model_id=business_model2.id
+    )
+
+    opportunity2.categories.append(category)
+
+    db_session.add(opportunity2)
+    await db_session.flush()
+
+    # Act
+    result = await search_opportunities(
+        db_session,
+        category_id=category.id
+    )
+
+    result2 = await search_opportunities(
+        db_session,
+        search="solar energy",
+        category_id=category.id
+    )
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].id == opportunity2.id
+
+    assert len(result2) == 1
+    assert result2[0].id == opportunity2.id
+
+
+@pytest.mark.asyncio
+async def test_search_opportunities_with_all_filters(db_session):
+
+    # Arrange
+    business_model = BusinessModel(
+        name="Pay-as-you-go Solar Energy",
+        slug="pay-as-you-go-solar-energy",
+        summary="Providing affordable solar energy through flexible payments.",
+        description="A business model that allows households and businesses to access solar energy systems through instalment-based payments."
+    )
+
+    country = Country(
+        name="Kenya",
+        iso_code="KE"
+    )
+
+    category = Category(
+        name="Renewable Energy",
+        slug="renewable-energy",
+        description="Businesses focused on renewable energy."
+    )
+
+    db_session.add_all([business_model, country, category])
+    await db_session.flush()
+
+    opportunity = Opportunity(
+        title="Affordable Solar Energy for Rural Households",
+        slug="affordable-solar-energy-rural-households",
+        summary="Making solar electricity accessible to rural households.",
+        problem="Many rural households lack reliable access to electricity.",
+        proposed_solution="Provide solar home systems through a pay-as-you-go payment model.",
+        country_id=country.id,
+        business_model_id=business_model.id
+    )
+
+    opportunity.categories.append(category)
+
+    db_session.add(opportunity)
+    await db_session.flush()
+
+    # Act
+    result = await search_opportunities(
+        db_session,
+        search="solar energy",
+        country_id=country.id,
+        business_model_id=business_model.id,
+        category_id=category.id
+    )
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].id == opportunity.id
+
+
    
 
 

@@ -2,6 +2,7 @@ from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.opportunity import Opportunity
+from app.models.category import Category
 
 # retrieve data by slug
 async def get_by_slug(
@@ -60,6 +61,23 @@ async def search_opportunities(
                 Opportunity.title.ilike(f'%{search}%'),
                 Opportunity.summary.ilike(f"%{search}%")
             )
+        )
+
+    if country_id is not None:
+        statement = statement.where(
+            Opportunity.country_id == country_id
+        )
+
+    if business_model_id is not None:
+        statement = statement.where(
+            Opportunity.business_model_id == business_model_id
+        )
+
+    # .any() is used in this case because of the many to many relationship between opportunity and category
+    # so the code below searches all the categories in an opportunity and returns only the opportunity which contains the category.id matching with the passed category_id
+    if category_id is not None:
+        statement = statement.where(
+            Opportunity.categories.any(Category.id == category_id)
         )
 
     offset = (page -1) * page_size
